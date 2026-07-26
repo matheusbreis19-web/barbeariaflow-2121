@@ -7,6 +7,7 @@ interface IAInsightsViewProps {
   appointments: Appointment[];
   clients: ClientProfile[];
   todayRevenue: number;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export const IAInsightsView: React.FC<IAInsightsViewProps> = ({
@@ -14,6 +15,7 @@ export const IAInsightsView: React.FC<IAInsightsViewProps> = ({
   appointments,
   clients,
   todayRevenue,
+  onNavigateTab,
 }) => {
   const [aiInsightText, setAiInsightText] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -106,13 +108,13 @@ export const IAInsightsView: React.FC<IAInsightsViewProps> = ({
           </p>
 
           <div className="pt-2 border-t border-[#2A2A2A]">
-            <a
-              href="#crm"
-              className="text-xs font-black uppercase tracking-wider text-rose-400 hover:underline flex items-center gap-1"
+            <button
+              onClick={() => onNavigateTab && onNavigateTab('crm')}
+              className="text-xs font-black uppercase tracking-wider text-rose-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
             >
               <span>Ativar campanha de reconquista via WhatsApp</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </a>
+            </button>
           </div>
         </div>
 
@@ -134,13 +136,13 @@ export const IAInsightsView: React.FC<IAInsightsViewProps> = ({
           </p>
 
           <div className="pt-2 border-t border-[#2A2A2A]">
-            <a
-              href="#encaixe"
-              className="text-xs font-black uppercase tracking-wider text-[#D4AF37] hover:underline flex items-center gap-1"
+            <button
+              onClick={() => onNavigateTab && onNavigateTab('encaixe')}
+              className="text-xs font-black uppercase tracking-wider text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
             >
               <span>Lançar Encaixe Inteligente no balcão</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </a>
+            </button>
           </div>
         </div>
 

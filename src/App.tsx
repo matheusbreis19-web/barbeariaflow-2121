@@ -38,9 +38,15 @@ import { ServicosView } from './components/views/ServicosView';
 import { ConfigHorariosView } from './components/views/ConfigHorariosView';
 import { PublicBookingModal } from './components/modals/PublicBookingModal';
 import { NewAppointmentModal } from './components/modals/NewAppointmentModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { dbService } from './services/dbService';
+import { authService, UserSession } from './services/authService';
+import { LoginView } from './components/views/LoginView';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
+
   const [config, setConfig] = useState<ShopConfig>(initialShopConfig);
   const [units] = useState<ShopUnit[]>(initialUnits);
   const [barbers, setBarbers] = useState<Barber[]>(initialBarbers);
@@ -57,9 +63,33 @@ export default function App() {
   const [showPublicBookingModal, setShowPublicBookingModal] = useState<boolean>(false);
   const [showTVPanel, setShowTVPanel] = useState<boolean>(false);
 
-  // Load data from dbService (Supabase with mock fallback)
+  // Detect URL parameter for standalone TV mode or standalone Public Booking mode
+  const urlParams = new URLSearchParams(window.location.search);
+  const isStandaloneTV = urlParams.get('mode') === 'tv';
+  const isStandaloneBooking = urlParams.get('mode') === 'booking';
+
+  const handleOpenTVPanelNewTab = () => {
+    window.open(`${window.location.origin}${window.location.pathname}?mode=tv`, '_blank');
+  };
+
+  const handleOpenPublicBookingNewTab = () => {
+    window.open(`${window.location.origin}${window.location.pathname}?mode=booking`, '_blank');
+  };
+
+  // Load session and data from dbService (Supabase with mock fallback)
   useEffect(() => {
-    async function loadData() {
+    async function loadSessionAndData() {
+      try {
+        const session = await authService.getCurrentSession();
+        if (session) {
+          setCurrentUser(session);
+        }
+      } catch (err) {
+        console.warn('Error checking session:', err);
+      } finally {
+        setAuthChecked(true);
+      }
+
       try {
         const [
           fetchedConfig,
@@ -89,10 +119,11 @@ export default function App() {
         if (fetchedProducts.length > 0) setProducts(fetchedProducts);
         if (fetchedTransactions.length > 0) setTransactions(fetchedTransactions);
       } catch (err) {
-        console.error("Error loading data from dbService:", err);
+        console.warn('Error loading initial DB data:', err);
       }
     }
-    loadData();
+
+    loadSessionAndData();
   }, []);
 
   // Global ESC Key Handler to close modals or return to main agenda
@@ -301,23 +332,65 @@ export default function App() {
     const cleanPhone = phone.replace(/\D/g, '');
     const fullPhone = cleanPhone.length === 11 ? `55${cleanPhone}` : cleanPhone;
 
-    const text = `Fala ${name.split(' ')[0]}! Tudo certo? Passando para mandar um abraço e lembrar do seu corte na ${config.shopName}! Agende no link: ${process.env.APP_URL || 'https://barberos.app'}/agendar 💈✂️`;
+    const text = `Fala ${name.split(' ')[0]}! Tudo certo? Passando para mandar um abraço e lembrar do seu corte na ${config.shopName}! Agende no link: ${typeof window !== 'undefined' ? window.location.origin : 'https://barberos.app'}/agendar 💈✂️`;
     window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  if (showTVPanel) {
+  const handleSelectTab = (tab: string) => {
+    setShowTVPanel(false);
+    setActiveTab(tab);
+  };
+
+  const handleLogout = async () => {
+    await authService.signOut();
+    setCurrentUser(null);
+  };
+
+  if (isStandaloneTV) {
     return (
-      <div className="relative">
-        <button
-          onClick={() => setShowTVPanel(false)}
-          className="fixed top-4 right-4 z-50 bg-slate-900 border border-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl shadow-xl hover:bg-slate-800"
-        >
-          ✕ Fechar Modo TV
-        </button>
+      <div className="min-h-screen bg-[#0E0E0E] text-slate-100 p-4">
+        {showTVPanel && (
+          <button
+            onClick={() => setShowTVPanel(false)}
+            className="fixed top-4 right-4 z-50 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-zinc-300 px-4 py-2 rounded-xl text-xs font-bold border border-[#2A2A2A] shadow-xl flex items-center gap-2 cursor-pointer"
+          >
+            <span>✕ Fechar Modo TV (ESC)</span>
+          </button>
+        )}
         <TVPanelView config={config} appointments={appointments} />
       </div>
     );
   }
+
+  if (isStandaloneBooking) {
+    return (
+      <div className="min-h-screen bg-[#0E0E0E] text-slate-100 flex items-center justify-center p-4">
+        <PublicBookingModal
+          config={config}
+          services={services}
+          barbers={barbers}
+          onClose={() => window.close()}
+          onConfirmBooking={(newApt) => {
+            setAppointments((prev) => [...prev, newApt]);
+            dbService.createAppointment(newApt);
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <LoginView
+        onLoginSuccess={(session) => {
+          setCurrentUser(session);
+        }}
+      />
+    );
+  }
+
+  const validTabs = ['agenda', 'atendimento', 'servicos', 'config', 'tv_panel', 'encaixe', 'crm', 'caixa', 'equipe', 'estoque', 'whatsapp', 'ia_insights'];
+  const currentTab = validTabs.includes(activeTab) ? activeTab : 'agenda';
 
   return (
     <div className="min-h-screen bg-[#0E0E0E] text-slate-100 flex flex-col font-sans antialiased selection:bg-[#D4AF37] selection:text-slate-950 overflow-x-hidden">
@@ -326,11 +399,11 @@ export default function App() {
       <Navbar
         config={config}
         units={units}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        activeTab={currentTab}
+        setActiveTab={handleSelectTab}
         onOpenNewAppointment={() => setShowNewAptModal(true)}
-        onOpenPublicBooking={() => setShowPublicBookingModal(true)}
-        onOpenTVPanel={() => setShowTVPanel(true)}
+        onOpenPublicBooking={handleOpenPublicBookingNewTab}
+        onOpenTVPanel={handleOpenTVPanelNewTab}
         onConfigChange={setConfig}
         todayRevenue={todayRevenue}
         revenueTarget={config.dailyRevenueTarget}
@@ -340,149 +413,153 @@ export default function App() {
       {/* Main Body */}
       <div className="flex-1 flex flex-col md:flex-row max-w-[1600px] w-full mx-auto px-0 sm:px-2 md:px-4">
         
-        {/* Sidebar Menu */}
+        {/* Navigation Sidebar */}
         <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          activeTab={currentTab}
+          setActiveTab={handleSelectTab}
           smartGapsCount={2}
           atRiskClientsCount={atRiskClients.length}
           lowStockCount={lowStockProducts.length}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
 
         {/* Content View Area */}
         <main className="flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto min-w-0">
-          {activeTab === 'agenda' && (
-            <AgendaView
-              appointments={appointments}
-              barbers={barbers}
-              services={services}
-              selectedBarberId={selectedBarberId}
-              setSelectedBarberId={setSelectedBarberId}
-              onOpenNewAppointment={() => setShowNewAptModal(true)}
-              onUpdateStatus={handleUpdateAppointmentStatus}
-              onOpenEncaixeModal={() => setActiveTab('encaixe')}
-              onSendWhatsappReminder={handleTriggerWhatsapp}
-              todayRevenue={todayRevenue}
-              dailyRevenueTarget={config.dailyRevenueTarget}
-              onUpdateDailyTarget={(newTarget) => setConfig((prev) => ({ ...prev, dailyRevenueTarget: newTarget }))}
-            />
-          )}
+          <ErrorBoundary>
+            {currentTab === 'agenda' && (
+              <AgendaView
+                appointments={appointments}
+                barbers={barbers}
+                services={services}
+                selectedBarberId={selectedBarberId}
+                setSelectedBarberId={setSelectedBarberId}
+                onOpenNewAppointment={() => setShowNewAptModal(true)}
+                onUpdateStatus={handleUpdateAppointmentStatus}
+                onOpenEncaixeModal={() => handleSelectTab('encaixe')}
+                onSendWhatsappReminder={handleTriggerWhatsapp}
+                todayRevenue={todayRevenue}
+                dailyRevenueTarget={config.dailyRevenueTarget}
+                onUpdateDailyTarget={(newTarget) => setConfig((prev) => ({ ...prev, dailyRevenueTarget: newTarget }))}
+              />
+            )}
 
-          {activeTab === 'atendimento' && (
-            <AtendimentoView
-              appointments={appointments}
-              services={services}
-              products={products}
-              onUpdateStatus={handleUpdateAppointmentStatus}
-              onCompleteWithPayment={handleCompleteWithPayment}
-            />
-          )}
+            {currentTab === 'atendimento' && (
+              <AtendimentoView
+                appointments={appointments}
+                services={services}
+                products={products}
+                onUpdateStatus={handleUpdateAppointmentStatus}
+                onCompleteWithPayment={handleCompleteWithPayment}
+              />
+            )}
 
-          {activeTab === 'servicos' && (
-            <ServicosView
-              services={services}
-              onAddService={handleAddService}
-              onUpdateService={handleUpdateService}
-              onDeleteService={handleDeleteService}
-            />
-          )}
+            {currentTab === 'servicos' && (
+              <ServicosView
+                services={services}
+                onAddService={handleAddService}
+                onUpdateService={handleUpdateService}
+                onDeleteService={handleDeleteService}
+              />
+            )}
 
-          {activeTab === 'config' && (
-            <ConfigHorariosView
-              config={config}
-              appointments={appointments}
-              onSaveConfig={(updatedConfig) => setConfig(updatedConfig)}
-              onOpenPublicBooking={() => setShowPublicBookingModal(true)}
-            />
-          )}
+            {currentTab === 'config' && (
+              <ConfigHorariosView
+                config={config}
+                appointments={appointments}
+                onSaveConfig={(updatedConfig) => setConfig(updatedConfig)}
+                onOpenPublicBooking={() => setShowPublicBookingModal(true)}
+              />
+            )}
 
-          {activeTab === 'tv_panel' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between">
-                <div>
-                  <h2 className="font-bold text-base text-white">Modo Painel TV / Tablet Embutido</h2>
-                  <p className="text-xs text-slate-400">Exibição para tela de recepção da barbearia</p>
+            {currentTab === 'tv_panel' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <h2 className="font-bold text-base text-white">Modo Painel TV / Tablet Embutido</h2>
+                    <p className="text-xs text-slate-400">Exibição para tela de recepção da barbearia</p>
+                  </div>
+                  <button
+                    onClick={handleOpenTVPanelNewTab}
+                    className="bg-[#D4AF37] hover:bg-[#c5a030] text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+                  >
+                    <span>📺 Abrir em Nova Aba (TV)</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowTVPanel(true)}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl"
-                >
-                  Abrir em Tela Cheia
-                </button>
+                <TVPanelView config={config} appointments={appointments} />
               </div>
-              <TVPanelView config={config} appointments={appointments} />
-            </div>
-          )}
+            )}
 
-          {activeTab === 'encaixe' && (
-            <EncaixeInteligenteView
-              services={services}
-              barbers={barbers}
-              onConfirmFit={handleConfirmFit}
-            />
-          )}
+            {currentTab === 'encaixe' && (
+              <EncaixeInteligenteView
+                services={services}
+                barbers={barbers}
+                onConfirmFit={handleConfirmFit}
+              />
+            )}
 
-          {activeTab === 'crm' && (
-            <CRMView
-              clients={clients}
-              onTriggerWhatsappAI={handleTriggerWhatsapp}
-            />
-          )}
+            {currentTab === 'crm' && (
+              <CRMView
+                clients={clients}
+                onTriggerWhatsappAI={handleTriggerWhatsapp}
+              />
+            )}
 
-          {activeTab === 'caixa' && (
-            <CaixaView
-              transactions={transactions}
-              barbers={barbers}
-              appointments={appointments}
-              dailyTarget={config.dailyRevenueTarget}
-              onAddTransaction={(tx) => setTransactions((prev) => [...prev, tx])}
-              onUpdateDailyTarget={(newTarget) => setConfig((prev) => ({ ...prev, dailyRevenueTarget: newTarget }))}
-            />
-          )}
+            {currentTab === 'caixa' && (
+              <CaixaView
+                transactions={transactions}
+                barbers={barbers}
+                appointments={appointments}
+                dailyTarget={config.dailyRevenueTarget}
+                onAddTransaction={(tx) => setTransactions((prev) => [...prev, tx])}
+                onUpdateDailyTarget={(newTarget) => setConfig((prev) => ({ ...prev, dailyRevenueTarget: newTarget }))}
+              />
+            )}
 
-          {activeTab === 'equipe' && (
-            <EquipeView
-              barbers={barbers}
-              appointments={appointments}
-              tenantType={config.tenantType}
-              onAddBarber={handleAddBarber}
-              onUpdateBarber={handleUpdateBarber}
-              onDeleteBarber={handleDeleteBarber}
-              onUpdateCommission={(barberId, newRate) =>
-                setBarbers((prev) =>
-                  prev.map((b) => (b.id === barberId ? { ...b, commissionRate: newRate } : b))
-                )
-              }
-            />
-          )}
+            {currentTab === 'equipe' && (
+              <EquipeView
+                barbers={barbers}
+                appointments={appointments}
+                tenantType={config.tenantType}
+                onAddBarber={handleAddBarber}
+                onUpdateBarber={handleUpdateBarber}
+                onDeleteBarber={handleDeleteBarber}
+                onUpdateCommission={(barberId, newRate) =>
+                  setBarbers((prev) =>
+                    prev.map((b) => (b.id === barberId ? { ...b, commissionRate: newRate } : b))
+                  )
+                }
+              />
+            )}
 
-          {activeTab === 'estoque' && (
-            <EstoqueView
-              products={products}
-              onAddProduct={handleAddProduct}
-              onUpdateProduct={handleUpdateProduct}
-              onDeleteProduct={handleDeleteProduct}
-              onRestock={handleRestockProduct}
-            />
-          )}
+            {currentTab === 'estoque' && (
+              <EstoqueView
+                products={products}
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+                onRestock={handleRestockProduct}
+              />
+            )}
 
-          {activeTab === 'whatsapp' && (
-            <WhatsAppView
-              config={config}
-              clients={clients}
-            />
-          )}
+            {currentTab === 'whatsapp' && (
+              <WhatsAppView
+                config={config}
+                clients={clients}
+              />
+            )}
 
-          {activeTab === 'ia_insights' && (
-            <IAInsightsView
-              config={config}
-              appointments={appointments}
-              clients={clients}
-              todayRevenue={todayRevenue}
-            />
-          )}
+            {currentTab === 'ia_insights' && (
+              <IAInsightsView
+                config={config}
+                appointments={appointments}
+                clients={clients}
+                todayRevenue={todayRevenue}
+                onNavigateTab={handleSelectTab}
+              />
+            )}
+          </ErrorBoundary>
         </main>
-
       </div>
 
       {/* Modals */}

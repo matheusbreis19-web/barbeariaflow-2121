@@ -20,12 +20,17 @@ import {
   LayoutDashboard
 } from 'lucide-react';
 
+import { UserSession } from '../services/authService';
+import { LogOut, UserCheck } from 'lucide-react';
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   smartGapsCount: number;
   atRiskClientsCount: number;
   lowStockCount: number;
+  currentUser?: UserSession | null;
+  onLogout?: () => void;
 }
 
 interface NavItem {
@@ -49,6 +54,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   smartGapsCount,
   atRiskClientsCount,
   lowStockCount,
+  currentUser,
+  onLogout,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -278,19 +285,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </div>
 
-      {/* Footer Info */}
-      {!isCollapsed && (
-        <div className="p-3 border-t border-[#26262E]">
-          <div className="bg-[#1A1A20] border border-[#2A2A35] rounded-2xl p-3 text-xs text-zinc-400 space-y-1">
-            <div className="flex items-center gap-1.5 text-white font-extrabold uppercase text-[11px] tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span>Painel Inteligente</span>
+      {/* Footer Info & User Profile */}
+      {!isCollapsed ? (
+        <div className="p-3 border-t border-[#26262E] space-y-2">
+          {currentUser && (
+            <div className="bg-[#1A1A20] border border-[#2A2A35] rounded-2xl p-3 flex items-center justify-between shadow-md">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center font-black text-xs flex-shrink-0">
+                  {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-black text-white truncate leading-tight">
+                    {currentUser.name || 'Usuário'}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#D4AF37] truncate leading-tight uppercase">
+                    {currentUser.role === 'admin' ? 'Dono / Gestor' : 'Barbeiro'}
+                  </span>
+                </div>
+              </div>
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-1.5 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer flex-shrink-0"
+                  title="Sair do Sistema"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
             </div>
-            <p className="text-[10px] text-zinc-400 leading-snug">
-              Clique nas setas superiores para ocultar/expandir o menu lateral.
-            </p>
+          )}
+
+          <div className="bg-[#0D0D10] border border-[#262630] rounded-xl p-2.5 text-xs text-zinc-400">
+            <div className="flex items-center gap-1.5 text-white font-black uppercase text-[10px] tracking-wider">
+              <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+              <span>Sessão Autenticada</span>
+            </div>
           </div>
         </div>
+      ) : (
+        currentUser && onLogout && (
+          <div className="p-2 border-t border-[#26262E] flex justify-center">
+            <button
+              onClick={onLogout}
+              className="p-2 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer"
+              title="Sair do Sistema"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )
       )}
     </aside>
   );
