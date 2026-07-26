@@ -1,0 +1,6 @@
+{
+  "name": "Barbearia Barbershop - Sistema Operacional",
+  "description": "Sistema operacional diário inteligente para barbearia com agendamento, caixa, CRM, TV live painel, comissões e WhatsApp inteligente.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
