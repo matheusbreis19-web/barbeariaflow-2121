@@ -87,8 +87,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         
         {/* Header & Logo */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/40 text-[#D4AF37] shadow-xl mb-1">
-            <Scissors className="w-7 h-7 stroke-[2.5]" />
+          <div className="flex justify-center mb-1">
+            <img src="/logo.png" alt="Barbearia Logo" className="w-28 h-auto object-contain drop-shadow-2xl" />
           </div>
 
           <div className="flex items-center justify-center gap-2">
