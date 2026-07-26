@@ -8,6 +8,28 @@ export interface UserSession {
   name?: string;
 }
 
+const translateAuthError = (msg: string): string => {
+  if (!msg) return 'Erro ao efetuar autenticação.';
+  const lower = msg.toLowerCase();
+  
+  if (lower.includes('invalid login credentials')) {
+    return 'E-mail ou senha incorretos. Se você se cadastrou antes das variáveis estarem ativas, por favor clique em "Cadastrar" para vincular sua conta ao banco.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Seu e-mail ainda não foi confirmado. Verifique a caixa de entrada para ativar a conta.';
+  }
+  if (lower.includes('user already registered') || lower.includes('already exists')) {
+    return 'Este e-mail já está cadastrado. Por favor, faça login na aba "Entrar".';
+  }
+  if (lower.includes('password should be at least')) {
+    return 'A senha deve ter no mínimo 6 caracteres.';
+  }
+  if (lower.includes('rate limit')) {
+    return 'Muitas tentativas em pouco tempo. Aguarde alguns segundos e tente novamente.';
+  }
+  return msg;
+};
+
 export const authService = {
   // Check active session
   async getCurrentSession(): Promise<UserSession | null> {
@@ -51,7 +73,7 @@ export const authService = {
         });
 
         if (error) {
-          return { session: null, error: error.message };
+          return { session: null, error: translateAuthError(error.message) };
         }
 
         if (data.user) {
@@ -65,11 +87,11 @@ export const authService = {
           return { session: userSession, error: null };
         }
       } catch (err: any) {
-        return { session: null, error: err.message || 'Erro ao efetuar login.' };
+        return { session: null, error: translateAuthError(err.message || 'Erro ao efetuar login.') };
       }
     }
 
-    // Demo Mode fallback
+    // Local Storage Fallback
     if (email && pass.length >= 4) {
       const demoUser: UserSession = {
         id: `user-${Date.now()}`,
@@ -102,7 +124,7 @@ export const authService = {
         });
 
         if (error) {
-          return { session: null, error: error.message };
+          return { session: null, error: translateAuthError(error.message) };
         }
 
         if (data.user) {
@@ -116,11 +138,11 @@ export const authService = {
           return { session: userSession, error: null };
         }
       } catch (err: any) {
-        return { session: null, error: err.message || 'Erro ao realizar cadastro.' };
+        return { session: null, error: translateAuthError(err.message || 'Erro ao realizar cadastro.') };
       }
     }
 
-    // Demo Mode fallback
+    // Local Storage Fallback
     const demoUser: UserSession = {
       id: `user-${Date.now()}`,
       email,
