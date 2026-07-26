@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Scissors, Lock, Mail, Store, User, ArrowRight, Eye, EyeOff, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
 import { authService, UserSession } from '../../services/authService';
+import { BarberLogoSVG } from '../BarberLogo';
 
 interface LoginViewProps {
   onLoginSuccess: (session: UserSession) => void;
@@ -65,16 +66,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    const { session } = await authService.signIn('gestor@barbeariaflow.com', '123456');
-    setLoading(false);
-    if (session) {
-      onLoginSuccess(session);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4 relative overflow-hidden font-sans">
       
@@ -87,8 +78,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         
         {/* Header & Logo */}
         <div className="text-center space-y-2">
-          <div className="flex justify-center mb-1">
-            <img src="/logo.png" alt="Barbearia Logo" className="w-28 h-auto object-contain drop-shadow-2xl" />
+          <div className="flex justify-center mb-2">
+            <BarberLogoSVG size={84} />
           </div>
 
           <div className="flex items-center justify-center gap-2">
@@ -112,9 +103,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           <button
             type="button"
             onClick={() => { setMode('login'); setErrorMsg(null); }}
-            className={`py-2.5 rounded-xl transition-all ${
+            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
               mode === 'login'
-                ? 'bg-[#D4AF37] text-black shadow-lg'
+                ? 'bg-[#D4AF37] text-black shadow-lg font-black'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -123,9 +114,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           <button
             type="button"
             onClick={() => { setMode('register'); setErrorMsg(null); }}
-            className={`py-2.5 rounded-xl transition-all ${
+            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
               mode === 'register'
-                ? 'bg-[#D4AF37] text-black shadow-lg'
+                ? 'bg-[#D4AF37] text-black shadow-lg font-black'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -242,20 +233,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
         </form>
 
-        {/* Demo Fast Access Button */}
-        <div className="pt-4 border-t border-[#2A2A2A] text-center space-y-3">
-          <span className="text-[11px] text-zinc-500 font-bold uppercase block">
-            Quer testar primeiro sem cadastrar?
+        {/* Exclusive Email Access Security Footer */}
+        <div className="pt-3 border-t border-[#2A2A2A] text-center">
+          <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
+            <span>Acesso Exclusivo & Seguro via E-mail</span>
           </span>
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={loading}
-            className="w-full bg-[#1A1A1A] hover:bg-[#222] border border-[#2A2A2A] hover:border-[#D4AF37]/50 text-[#D4AF37] py-2.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 fill-current" />
-            <span>Entrar como Convidado (Modo Demo)</span>
-          </button>
         </div>
 
       </div>
